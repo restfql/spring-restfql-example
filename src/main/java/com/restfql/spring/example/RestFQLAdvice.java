@@ -3,7 +3,6 @@ package com.restfql.spring.example;
 import graphql.language.Document;
 import graphql.language.Field;
 import graphql.language.OperationDefinition;
-import graphql.language.Selection;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.HttpMessageConverter;
@@ -14,7 +13,6 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -26,16 +24,22 @@ public class RestFQLAdvice implements ResponseBodyAdvice<Object> {
 
     @Override
     public boolean supports(MethodParameter returnType, Class<? extends HttpMessageConverter<?>> converterType) {
-        return (returnType.getContainingClass().toString().contains("RestController")
-                && Arrays.stream(returnType.getMethod().getAnnotations())
-                .anyMatch(annotation -> annotation.annotationType().equals(GetMapping.class)));
+        return true;
     }
 
     private Map<String, Object> GetSubset(Object body, List<Field> fql){
         var response = new HashMap<String, Object>();
         fql.stream().forEach( field -> {
+            System.out.println(field.getName());
+            System.out.println(field.getSelectionSet());
             try {
-                response.put(field.getName(), body.getClass().getField(field.getName()).get(body));
+                response.put(
+                        field.getName(),
+                        field.getSelectionSet() != null
+                                ? GetSubset(
+                                        body.getClass().getField(field.getName()).get(body),
+                                        field.getSelectionSet().getSelections().stream().map(selection -> (Field) selection).toList())
+                                : body.getClass().getField(field.getName()).get(body));
             } catch (Exception e) {
                 System.err.println(e.getMessage());
             }
